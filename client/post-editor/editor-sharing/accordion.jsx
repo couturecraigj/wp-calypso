@@ -19,7 +19,7 @@ import FormTextInput from 'components/forms/form-text-input';
 import PostMetadata from 'lib/post-metadata';
 import Sharing from './';
 import AccordionSection from 'components/accordion/section';
-import * as postUtils from 'lib/posts/utils';
+import * as postUtils from 'state/posts/utils';
 import { isMobile } from 'lib/viewport';
 import QueryPublicizeConnections from 'components/data/query-publicize-connections';
 import { getCurrentUserId } from 'state/current-user/selectors';
@@ -29,6 +29,7 @@ import { getEditedPost, getEditedPostValue } from 'state/posts/selectors';
 import { getSiteSlug, isJetpackModuleActive } from 'state/sites/selectors';
 import { getSiteUserConnections } from 'state/sharing/publicize/selectors';
 import hasBrokenSiteUserConnection from 'state/selectors/has-broken-site-user-connection';
+import hasInvalidSiteUserConnection from 'state/selectors/has-invalid-site-user-connection';
 import isPublicizeEnabled from 'state/selectors/is-publicize-enabled';
 import { recordGoogleEvent } from 'state/analytics/actions';
 
@@ -39,6 +40,7 @@ class EditorSharingAccordion extends React.Component {
 		post: PropTypes.object,
 		connections: PropTypes.array,
 		hasBrokenConnection: PropTypes.bool,
+		hasInvalidConnection: PropTypes.bool,
 		isPublicizeEnabled: PropTypes.bool,
 		isSharingActive: PropTypes.bool,
 		isLikesActive: PropTypes.bool,
@@ -123,6 +125,17 @@ class EditorSharingAccordion extends React.Component {
 			};
 		}
 
+		if ( this.props.hasInvalidConnection ) {
+			status = {
+				type: 'error',
+				text: this.props.translate( 'A connection is broken and must be removed', {
+					comment: 'Publicize connection is invalid.',
+				} ),
+				position: isMobile() ? 'top left' : 'top',
+				onClick: this.props.onStatusClick,
+			};
+		}
+
 		return (
 			<Accordion
 				title={ this.props.translate( 'Sharing' ) }
@@ -157,6 +170,7 @@ export default connect(
 			post,
 			connections: getSiteUserConnections( state, siteId, userId ),
 			hasBrokenConnection: hasBrokenSiteUserConnection( state, siteId, userId ),
+			hasInvalidConnection: hasInvalidSiteUserConnection( state, siteId, userId ),
 			isSharingActive,
 			isLikesActive,
 			isPublicizeEnabled: isPublicizeEnabled( state, siteId, postType ),

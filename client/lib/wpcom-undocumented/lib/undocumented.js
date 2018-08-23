@@ -1241,34 +1241,6 @@ Undocumented.prototype.setPrimaryDomain = function( siteId, domain, fn ) {
 	return this.wpcom.req.post( '/sites/' + siteId + '/domains/primary', {}, { domain: domain }, fn );
 };
 
-/**
- * Fetch preview markup for a site
- *
- * @param {int} siteId The site ID
- * @param {string} path Optional. The site path to preview
- * @param {object} postData Optional. The customization data to send
- * @return {Promise} A Promise to resolve when complete
- */
-Undocumented.prototype.fetchPreviewMarkup = function( siteId, path, postData ) {
-	debug( '/sites/:site_id/previews/mine' );
-	return new Promise( ( resolve, reject ) => {
-		const endpoint = `/sites/${ siteId }/previews/mine`;
-		const query = { path };
-		const isPreviewCustomized = postData && Object.keys( postData ).length > 0;
-		const request = isPreviewCustomized
-			? this.wpcom.req.post( endpoint, query, { customized: postData } )
-			: this.wpcom.req.get( endpoint, query );
-		request
-			.then( response => {
-				if ( ! response.html ) {
-					return reject( new Error( 'No markup received from API' ) );
-				}
-				resolve( response.html );
-			} )
-			.catch( reject );
-	} );
-};
-
 function addReaderContentWidth( params ) {
 	if ( params.content_width ) {
 		return;
@@ -2380,17 +2352,6 @@ Undocumented.prototype.unregisterDevice = function( deviceId, fn ) {
 Undocumented.prototype.wordAdsApprove = function( siteId ) {
 	debug( '/sites/:site:/wordads/approve' );
 	return this.wpcom.req.post( '/sites/' + siteId + '/wordads/approve' );
-};
-
-/**
- * Get WordAds Status of a site.
- *
- * @param {int}       siteId            The site ID
- * @returns {Promise}
- */
-Undocumented.prototype.getWordadsStatus = function( siteId, fn ) {
-	debug( '/sites/:site:/wordads/status' );
-	return this.wpcom.req.get( '/sites/' + siteId + '/wordads/status', fn );
 };
 
 /**

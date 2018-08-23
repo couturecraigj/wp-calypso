@@ -5,7 +5,7 @@
 import page from 'page';
 import React from 'react';
 import i18n from 'i18n-calypso';
-import { noop, some, startsWith, uniq } from 'lodash';
+import { get, noop, some, startsWith, uniq } from 'lodash';
 
 /**
  * Internal Dependencies
@@ -16,6 +16,7 @@ import { receiveSite, requestSite } from 'state/sites/actions';
 import {
 	getSite,
 	getSiteSlug,
+	getSiteAdminUrl,
 	isJetpackModuleActive,
 	isJetpackSite,
 	isRequestingSites,
@@ -37,6 +38,8 @@ import getPrimarySiteId from 'state/selectors/get-primary-site-id';
 import getSiteId from 'state/selectors/get-site-id';
 import getSites from 'state/selectors/get-sites';
 import isDomainOnlySite from 'state/selectors/is-domain-only-site';
+import isSiteAutomatedTransfer from 'state/selectors/is-site-automated-transfer';
+import canCurrentUser from 'state/selectors/can-current-user';
 import {
 	domainManagementAddGoogleApps,
 	domainManagementContactsPrivacy,
@@ -242,19 +245,16 @@ function onSelectedSiteAvailable( context ) {
  * @returns {object} A site-picker React element
  */
 function createSitesComponent( context ) {
-	const basePath = sectionify( context.path );
-	const path = context.prevPath ? sectionify( context.prevPath ) : '/stats';
+	const contextPath = sectionify( context.path );
 
 	// This path sets the URL to be visited once a site is selected
-	const sourcePath = basePath === '/sites' ? path : basePath;
+	const basePath = contextPath === '/sites' ? '/stats' : contextPath;
 
-	analytics.pageView.record( basePath, sitesPageTitleForAnalytics );
+	analytics.pageView.record( contextPath, sitesPageTitleForAnalytics );
 
 	return (
 		<SitesComponent
-			path={ context.path }
-			sourcePath={ sourcePath }
-			user={ user }
+			siteBasePath={ basePath }
 			getSiteSelectionHeaderText={ context.getSiteSelectionHeaderText }
 		/>
 	);
@@ -375,6 +375,37 @@ export function siteSelection( context, next ) {
 
 	const siteId = getSiteId( getState(), siteFragment );
 	if ( siteId ) {
+		const state = getState();
+		const isAtomicSite = isSiteAutomatedTransfer( state, siteId );
+		const userCanManagePlugins = canCurrentUser( state, siteId, 'manage_options' );
+		const calypsoify = isAtomicSite && config.isEnabled( 'calypsoify/plugins' );
+
+		if (
+			window &&
+			window.location &&
+			window.location.replace &&
+			userCanManagePlugins &&
+			calypsoify &&
+			/^\/plugins/.test( basePath )
+		) {
+			const plugin = get( context, 'params.plugin' );
+			let pluginString = '';
+			if ( plugin ) {
+				pluginString = [
+					'tab=search',
+					`s=${ plugin }`,
+					'type=term',
+					'modal-mode=true',
+					`plugin=${ plugin }`,
+				].join( '&' );
+			}
+
+			const pluginIstallURL = 'plugin-install.php?calypsoify=1' + `&${ pluginString }`;
+			const pluginLink = getSiteAdminUrl( state, siteId ) + pluginIstallURL;
+
+			return window.location.replace( pluginLink );
+		}
+
 		dispatch( setSelectedSiteId( siteId ) );
 		const selectionComplete = onSelectedSiteAvailable( context );
 

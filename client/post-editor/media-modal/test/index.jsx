@@ -48,10 +48,6 @@ jest.mock( 'lib/media/actions', () => ( {
 	delete: () => {},
 	setLibrarySelectedItems: () => {},
 } ) );
-jest.mock( 'lib/posts/stats', () => ( {
-	recordEvent: () => {},
-	recordState: () => {},
-} ) );
 jest.mock( 'my-sites/media-library', () => require( 'components/empty-component' ) );
 
 /**
@@ -316,6 +312,22 @@ describe( 'EditorMediaModal', () => {
 	test( 'should show an insert button if none or one local items are selected', () => {
 		const tree = shallow(
 			<EditorMediaModal site={ DUMMY_SITE } view={ ModalViews.DETAIL } setView={ spy } />
+		).instance();
+
+		const buttons = tree.getModalButtons();
+
+		expect( buttons[ 1 ].label ).to.be.equals( 'Insert' );
+	} );
+
+	test( 'should show an insert button if multiple images are selected when gallery view is disabled', () => {
+		const tree = shallow(
+			<EditorMediaModal
+				site={ DUMMY_SITE }
+				mediaLibrarySelectedItems={ DUMMY_MEDIA }
+				view={ ModalViews.DETAIL }
+				setView={ spy }
+				galleryViewEnabled={ false }
+			/>
 		).instance();
 
 		const buttons = tree.getModalButtons();

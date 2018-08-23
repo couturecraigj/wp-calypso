@@ -18,10 +18,11 @@ import CartBody from 'my-sites/checkout/cart/cart-body';
 import CartMessages from './cart-messages';
 import CartSummaryBar from 'my-sites/checkout/cart/cart-summary-bar';
 import CartPlanAd from './cart-plan-ad';
+import CartPlanAdTheme from './cart-plan-ad-theme';
 import CartPlanDiscountAd from './cart-plan-discount-ad';
 import Sidebar from 'layout/sidebar';
 import CartBodyLoadingPlaceholder from 'my-sites/checkout/cart/cart-body/loading-placeholder';
-import { action as upgradesActionTypes } from 'lib/upgrades/constants';
+import { CART_ON_MOBILE_SHOW } from 'lib/upgrades/action-types';
 import scrollIntoViewport from 'lib/scroll-into-viewport';
 
 class SecondaryCart extends Component {
@@ -37,7 +38,7 @@ class SecondaryCart extends Component {
 	componentWillMount() {
 		this.dispatchToken = Dispatcher.register(
 			function( payload ) {
-				if ( payload.action.type === upgradesActionTypes.CART_ON_MOBILE_SHOW ) {
+				if ( payload.action.type === CART_ON_MOBILE_SHOW ) {
 					this.setState( { cartVisible: payload.action.show } );
 				}
 			}.bind( this )
@@ -81,6 +82,7 @@ class SecondaryCart extends Component {
 				<CartMessages cart={ cart } selectedSite={ selectedSite } />
 				<CartSummaryBar additionalClasses="cart-header" />
 				<CartPlanAd selectedSite={ selectedSite } cart={ cart } />
+				<CartPlanAdTheme selectedSite={ selectedSite } cart={ cart } />
 				<CartBody
 					ref={ this.setCartBodyRef }
 					cart={ cart }

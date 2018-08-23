@@ -13,12 +13,9 @@ import { navigation, siteSelection, sites } from 'my-sites/controller';
 import controller from './controller';
 import config from 'config';
 import { makeLayout, render as clientRender } from 'controller';
-import { getSiteFragment } from 'lib/route';
 
 export default function() {
 	if ( config.isEnabled( 'upsell/nudge-a-palooza' ) ) {
-		page( '/feature/store', siteSelection, sites, makeLayout, clientRender );
-
 		page(
 			'/feature/store/:domain',
 			siteSelection,
@@ -28,17 +25,14 @@ export default function() {
 			clientRender
 		);
 
-		page( '/feature/store/*', ( { path } ) => {
-			const siteFragment = getSiteFragment( path );
-
-			if ( siteFragment ) {
-				return page.redirect( `/feature/store/${ siteFragment }` );
-			}
-
-			return page.redirect( '/feature/store' );
-		} );
-
-		page( '/feature/plugins', siteSelection, sites, makeLayout, clientRender );
+		page(
+			'/feature/ads/:domain',
+			siteSelection,
+			navigation,
+			controller.wordAdsUpsell,
+			makeLayout,
+			clientRender
+		);
 
 		page(
 			'/feature/plugins/:domain',
@@ -49,14 +43,27 @@ export default function() {
 			clientRender
 		);
 
-		page( '/feature/plugins/*', ( { path } ) => {
-			const siteFragment = getSiteFragment( path );
+		page(
+			'/feature/themes/:domain',
+			siteSelection,
+			navigation,
+			controller.themesUpsell,
+			makeLayout,
+			clientRender
+		);
 
-			if ( siteFragment ) {
-				return page.redirect( `/feature/plugins/${ siteFragment }` );
-			}
+		// Specific feature's page
+		page( /\/feature\/([a-zA-Z0-9\-]+)$/, siteSelection, sites, makeLayout, clientRender );
 
-			return page.redirect( '/feature/plugins' );
-		} );
+		// General features page
+		page(
+			'/feature/:domain',
+			siteSelection,
+			navigation,
+			controller.features,
+			makeLayout,
+			clientRender
+		);
+		page( '/feature', siteSelection, sites, makeLayout, clientRender );
 	}
 }

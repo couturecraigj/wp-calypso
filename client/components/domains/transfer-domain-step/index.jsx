@@ -164,11 +164,31 @@ class TransferDomainStep extends React.Component {
 		return domainProductPrice;
 	};
 
+	getProductPriceClass = () => {
+		const { cart, domainsWithPlansOnly, isSignupStep, selectedSite } = this.props;
+		const { searchQuery } = this.state;
+		const domainsWithPlansOnlyButNoPlan =
+			domainsWithPlansOnly && ( ( selectedSite && ! isPlan( selectedSite.plan ) ) || isSignupStep );
+
+		let domainProductClass = 'transfer-domain-step__price';
+
+		if (
+			isNextDomainFree( cart ) ||
+			isDomainBundledWithPlan( cart, searchQuery ) ||
+			domainsWithPlansOnlyButNoPlan
+		) {
+			domainProductClass += ' transfer-domain-step__free-with-plan';
+		}
+
+		return domainProductClass;
+	};
+
 	addTransfer() {
 		const { translate } = this.props;
 		const { searchQuery, submittingAvailability, submittingWhois } = this.state;
 		const submitting = submittingAvailability || submittingWhois;
 		const domainProductPrice = this.getProductPriceText();
+		const domainProductClass = this.getProductPriceClass();
 
 		return (
 			<div>
@@ -179,25 +199,9 @@ class TransferDomainStep extends React.Component {
 						<div className="transfer-domain-step__domain-heading">
 							{ translate( 'Manage your domain and site together on WordPress.com.' ) }
 						</div>
-						<div>
-							{ translate(
-								'Transfer your domain away from your current provider to WordPress.com so you can update settings, ' +
-									"renew your domain, and more \u2013 right in your dashboard. We'll renew it for another year " +
-									'when the transfer is successful. {{a}}Learn more{{/a}}.',
-								{
-									components: {
-										a: (
-											<a
-												href={ INCOMING_DOMAIN_TRANSFER }
-												rel="noopener noreferrer"
-												target="_blank"
-											/>
-										),
-									},
-								}
-							) }
-						</div>
 					</div>
+
+					<div className={ domainProductClass }>{ domainProductPrice }</div>
 
 					<div className="transfer-domain-step__add-domain" role="group">
 						<FormTextInputWithAffixes
@@ -208,19 +212,37 @@ class TransferDomainStep extends React.Component {
 							onBlur={ this.save }
 							onChange={ this.setSearchQuery }
 							onFocus={ this.recordInputFocus }
-							suffix={ domainProductPrice }
 							autoFocus
 						/>
+						<Button
+							disabled={ ! getTld( searchQuery ) || submitting }
+							busy={ submitting }
+							className="transfer-domain-step__go button is-primary"
+							onClick={ this.handleFormSubmit }
+						>
+							{ translate( 'Transfer' ) }
+						</Button>
 					</div>
-					<Button
-						disabled={ ! getTld( searchQuery ) || submitting }
-						busy={ submitting }
-						className="transfer-domain-step__go button is-primary"
-						onClick={ this.handleFormSubmit }
-					>
-						{ translate( 'Transfer to WordPress.com' ) }
-					</Button>
 					{ this.domainRegistrationUpsell() }
+
+					<div className="transfer-domain-step__domain-text">
+						{ translate(
+							'Transfer your domain away from your current provider to WordPress.com so you can update settings, ' +
+								"renew your domain, and more \u2013 right in your dashboard. We'll renew it for another year " +
+								'when the transfer is successful. {{a}}Learn more about domain transfers.{{/a}}',
+							{
+								components: {
+									a: (
+										<a
+											href={ INCOMING_DOMAIN_TRANSFER }
+											rel="noopener noreferrer"
+											target="_blank"
+										/>
+									),
+								},
+							}
+						) }
+					</div>
 				</form>
 			</div>
 		);
@@ -511,21 +533,21 @@ class TransferDomainStep extends React.Component {
 						return;
 					}
 
-					this.setState( {
-						inboundTransferStatus: {
-							creationDate: result.creation_date,
-							email: result.admin_email,
-							loading: false,
-							losingRegistrar: result.registrar,
-							losingRegistrarIanaId: result.registrar_iana_id,
-							privacy: result.privacy,
-							termMaximumInYears: result.term_maximum_in_years,
-							transferEligibleDate: result.transfer_eligible_date,
-							transferRestrictionStatus: result.transfer_restriction_status,
-							unlocked: result.unlocked,
-						},
-					} );
-					resolve();
+					const inboundTransferStatus = {
+						creationDate: result.creation_date,
+						email: result.admin_email,
+						loading: false,
+						losingRegistrar: result.registrar,
+						losingRegistrarIanaId: result.registrar_iana_id,
+						privacy: result.privacy,
+						termMaximumInYears: result.term_maximum_in_years,
+						transferEligibleDate: result.transfer_eligible_date,
+						transferRestrictionStatus: result.transfer_restriction_status,
+						unlocked: result.unlocked,
+					};
+
+					this.setState( { inboundTransferStatus } );
+					resolve( { inboundTransferStatus } );
 				}
 			);
 		} );
@@ -539,14 +561,18 @@ class TransferDomainStep extends React.Component {
 				this.setState( { submittingAuthCodeCheck: false } );
 
 				if ( ! isEmpty( error ) ) {
+					const message = get( error, 'message' );
+					if ( message ) {
+						this.props.errorNotice( message );
+					}
 					resolve();
 					return;
 				}
 
-				this.setState( {
-					authCodeValid: result.success,
-				} );
-				resolve();
+				const authCodeValid = result.success;
+
+				this.setState( { authCodeValid } );
+				resolve( { authCodeValid } );
 			} );
 		} );
 	};

@@ -7,7 +7,8 @@
 /**
  * Internal dependencies
  */
-import PluginsUpsellComponent from './plugins-upsell';
-import StoreUpsellComponent from './store-upsell';
-
-export { PluginsUpsellComponent, StoreUpsellComponent };
+export PluginsUpsellComponent from './plugins-upsell';
+export StoreUpsellComponent from './store-upsell';
+export ThemesUpsellComponent from './themes-upsell';
+export WordAdsUpsellComponent from './ads-upsell';
+export FeaturesComponent from './features';

@@ -27,9 +27,7 @@ import getVisibleSites from 'state/selectors/get-visible-sites';
 import { infoNotice, removeNotice } from 'state/notices/actions';
 import { getNoticeLastTimeShown } from 'state/notices/selectors';
 import { recordTracksEvent } from 'state/analytics/actions';
-import isRtl from 'state/selectors/is-rtl';
 import { hasAllSitesList } from 'state/sites/selectors';
-import { abtest } from 'lib/abtest';
 
 class CurrentSite extends Component {
 	static propTypes = {
@@ -69,19 +67,14 @@ class CurrentSite extends Component {
 		) {
 			this.props.recordTracksEvent( 'calypso_cart_abandonment_notice_view' );
 
-      this.props.infoNotice(
-				'siteDeservesBoost' === abtest( 'staleCartNotice' )
-					? this.props.translate( 'Your site deserves a boost!' )
-					: this.props.translate( 'Your cart is awaiting payment.' ),
-				{
-					id: staleCartItemNoticeId,
-					isPersistent: false,
-					duration: 10000,
-					button: this.props.translate( 'Complete your purchase' ),
-					href: '/checkout/' + selectedSite.slug,
-					onClick: this.clickStaleCartItemsNotice,
-				}
-			);
+			this.props.infoNotice( this.props.translate( 'Your cart is awaiting payment.' ), {
+				id: staleCartItemNoticeId,
+				isPersistent: false,
+				duration: 10000,
+				button: this.props.translate( 'Complete your purchase' ),
+				href: '/checkout/' + selectedSite.slug,
+				onClick: this.clickStaleCartItemsNotice,
+			} );
 		}
 	};
 
@@ -98,7 +91,7 @@ class CurrentSite extends Component {
 	};
 
 	render() {
-		const { selectedSite, translate, anySiteSelected, rtlOn } = this.props;
+		const { selectedSite, translate, anySiteSelected } = this.props;
 
 		if ( ! anySiteSelected.length || ( ! selectedSite && ! this.props.hasAllSitesList ) ) {
 			/* eslint-disable wpcalypso/jsx-classname-namespace */
@@ -122,7 +115,7 @@ class CurrentSite extends Component {
 				{ this.props.siteCount > 1 && (
 					<span className="current-site__switch-sites">
 						<Button borderless onClick={ this.switchSites }>
-							<Gridicon icon={ rtlOn ? 'chevron-right' : 'chevron-left' } />
+							<Gridicon icon="chevron-left" />
 							<span className="current-site__switch-sites-label">
 								{ translate( 'Switch Site' ) }
 							</span>
@@ -147,7 +140,6 @@ class CurrentSite extends Component {
 
 export default connect(
 	state => ( {
-		rtlOn: isRtl( state ),
 		selectedSite: getSelectedSite( state ),
 		anySiteSelected: getSelectedOrAllSites( state ),
 		siteCount: getVisibleSites( state ).length,

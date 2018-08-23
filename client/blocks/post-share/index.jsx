@@ -129,7 +129,9 @@ class PostShare extends Component {
 	}
 
 	isConnectionActive = connection =>
-		connection.status !== 'broken' && this.skipConnection( connection );
+		connection.status !== 'broken' &&
+		connection.status !== 'invalid' &&
+		this.skipConnection( connection );
 
 	activeConnections() {
 		return this.props.connections.filter( this.isConnectionActive );
@@ -313,7 +315,7 @@ class PostShare extends Component {
 						className="post-share__schedule-button"
 						disabled={ this.isDisabled() }
 						disabledDays={ [ { before: new Date() } ] }
-						enableOutsideDays={ false }
+						showOutsideDays={ false }
 						title={ translate( 'Set date and time' ) }
 						selectedDay={ this.state.scheduledDate }
 						tabIndex={ 3 }
@@ -346,8 +348,9 @@ class PostShare extends Component {
 		}
 
 		const brokenConnections = connections.filter( connection => connection.status === 'broken' );
+		const invalidConnections = connections.filter( connection => connection.status === 'invalid' );
 
-		if ( ! brokenConnections.length ) {
+		if ( ! ( brokenConnections.length || invalidConnections.length ) ) {
 			return null;
 		}
 
@@ -362,6 +365,32 @@ class PostShare extends Component {
 					>
 						<NoticeAction href={ `/sharing/${ siteSlug }` }>
 							{ translate( 'Reconnect' ) }
+						</NoticeAction>
+					</Notice>
+				) ) }
+				{ invalidConnections.map( connection => (
+					<Notice
+						key={ connection.keyring_connection_ID }
+						status="is-error"
+						showDismiss={ false }
+						text={
+							connection.service === 'facebook'
+								? translate( 'Connections to Facebook profiles ceased to work on August 1st.' )
+								: translate( 'Connections to %s have a permenant issue which prevents sharing.', {
+										args: connection.label,
+								  } )
+						}
+					>
+						{ connection.service === 'facebook' && (
+							<NoticeAction
+								href={ 'https://en.support.wordpress.com/publicize/#facebook-pages' }
+								external
+							>
+								{ translate( 'Learn More' ) }
+							</NoticeAction>
+						) }
+						<NoticeAction href={ `/sharing/${ siteSlug }` }>
+							{ translate( 'Disconnect' ) }
 						</NoticeAction>
 					</Notice>
 				) ) }

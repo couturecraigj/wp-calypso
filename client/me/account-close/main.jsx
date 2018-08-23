@@ -161,6 +161,11 @@ class AccountSettingsClose extends Component {
 								</p>
 								<p className="account-close__body-copy">
 									{ translate(
+										'You will not be able to log in to any other Automattic Services that use your WordPress.com account as a login. This includes WooCommerce.com, Polldaddy.com, IntenseDebate.com and Gravatar.com. Once your WordPress.com account is closed, these services will also be closed and you will lose access to any orders or support history you may have.'
+									) }
+								</p>
+								<p className="account-close__body-copy">
+									{ translate(
 										'If you have any questions at all about what happens when you close an account, ' +
 											'please {{a}}chat with someone from our support team{{/a}} first. ' +
 											"They'll explain the ramifications and help you explore alternatives. ",
@@ -181,7 +186,7 @@ class AccountSettingsClose extends Component {
 						{ ( isLoading || isDeletePossible ) && (
 							<Button scary onClick={ this.handleDeleteClick }>
 								<Gridicon icon="trash" />
-								{ translate( 'Close account' ) }
+								{ translate( 'Close account', { context: 'button label' } ) }
 							</Button>
 						) }
 						{ hasAtomicSites && (
@@ -192,7 +197,7 @@ class AccountSettingsClose extends Component {
 						{ hasPurchases &&
 							! hasAtomicSites && (
 								<Button primary href="/me/purchases">
-									{ translate( 'Manage purchases' ) }
+									{ translate( 'Manage purchases', { context: 'button label' } ) }
 								</Button>
 							) }
 					</ActionPanelFooter>

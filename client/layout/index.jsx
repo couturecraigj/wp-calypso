@@ -22,7 +22,6 @@ import observe from 'lib/mixins/data-observe';
 import GlobalNotices from 'components/global-notices';
 import notices from 'notices';
 import TranslatorLauncher from './community-translator/launcher';
-import GuidedTours from 'layout/guided-tours';
 import config from 'config';
 import PulsingDot from 'components/pulsing-dot';
 import OfflineStatus from 'layout/offline-status';
@@ -38,6 +37,7 @@ import { hasSidebar, masterbarIsVisible } from 'state/ui/selectors';
 import InlineHelp from 'blocks/inline-help';
 import isHappychatOpen from 'state/happychat/selectors/is-happychat-open';
 import SitePreview from 'blocks/site-preview';
+import SupportArticleDialog from 'blocks/support-article-dialog';
 import { getCurrentLayoutFocus } from 'state/ui/layout-focus/selectors';
 import DocumentHead from 'components/data/document-head';
 import NpsSurveyNotice from 'layout/nps-survey-notice';
@@ -85,6 +85,7 @@ const Layout = createReactClass( {
 				user={ this.props.user }
 				section={ this.props.section.group }
 				sites={ this.props.sites }
+				compact={ this.props.section.name === 'checkout' }
 			/>
 		);
 	},
@@ -119,7 +120,7 @@ const Layout = createReactClass( {
 				<QuerySites primaryAndRecent />
 				<QuerySites allSites />
 				<QueryPreferences />
-				{ <GuidedTours /> }
+				<AsyncLoad require="layout/guided-tours" />
 				{ config.isEnabled( 'nps-survey/notice' ) && ! isE2ETest() && <NpsSurveyNotice /> }
 				{ config.isEnabled( 'keyboard-shortcuts' ) ? <KeyboardShortcutsMenu /> : null }
 				{ this.renderMasterbar() }
@@ -155,6 +156,7 @@ const Layout = createReactClass( {
 					<AsyncLoad require="components/webpack-build-monitor" placeholder={ null } />
 				) }
 				<InlineHelp />
+				<SupportArticleDialog />
 				<AppBanner />
 				{ config.isEnabled( 'gdpr-banner' ) && <GdprBanner /> }
 			</div>

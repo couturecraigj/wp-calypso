@@ -8,7 +8,7 @@ import { expect } from 'chai';
 /**
  * Internal dependencies
  */
-import { getRatesErrors, getCountriesData, getTotalPriceBreakdown } from '../selectors';
+import { getRatesErrors, getTotalPriceBreakdown } from '../selectors';
 
 describe( '#getRatesErrors', () => {
 	// when there are selected rates
@@ -302,31 +302,6 @@ describe( 'Shipping label selectors', () => {
 				},
 			},
 		},
-	} );
-
-	it( 'getCountriesData - returns null if labels not loaded', () => {
-		const state = getFullState( { loaded: false } );
-		const result = getCountriesData( state, orderId, siteId );
-		expect( result ).to.eql( null );
-	} );
-
-	it( 'getCountriesData - returns the countries data if they exist', () => {
-		const state = getFullState( {
-			loaded: true,
-			storeOptions: {
-				countriesData: {
-					US: {
-						CA: 'California',
-					},
-				},
-			},
-		} );
-		const result = getCountriesData( state, orderId, siteId );
-		expect( result ).to.eql( {
-			US: {
-				CA: 'California',
-			},
-		} );
 	} );
 
 	it( 'getTotalPriceBreakdown - returns null if the form is not loaded', () => {

@@ -94,7 +94,10 @@ export class SharingService extends Component {
 
 		// Depending on current status, perform an action when user clicks the
 		// service action button
-		if ( 'connected' === connectionStatus && this.canRemoveConnection() ) {
+		if (
+			( 'connected' === connectionStatus && this.canRemoveConnection() ) ||
+			'must-disconnect' === connectionStatus
+		) {
 			this.removeConnection();
 			this.props.recordGoogleEvent( 'Sharing', 'Clicked Disconnect Button', this.props.service.ID );
 		} else if ( 'reconnect' === connectionStatus ) {
@@ -337,6 +340,9 @@ export class SharingService extends Component {
 		} else if ( some( this.getConnections(), { status: 'broken' } ) ) {
 			// A problematic connection exists
 			status = 'reconnect';
+		} else if ( some( this.getConnections(), { status: 'invalid' } ) ) {
+			// A valid connection is not available anymore, user must reconnect
+			status = 'must-disconnect';
 		} else {
 			// If all else passes, assume service is connected
 			status = 'connected';
@@ -508,6 +514,7 @@ export function connectFor( sharingService, mapStateToProps, mapDispatchToProps 
 				service,
 				siteId,
 				siteUserConnections: getSiteUserConnectionsForService( state, siteId, userId, service.ID ),
+				userId,
 			};
 
 			return isFunction( mapStateToProps ) ? mapStateToProps( state, props ) : props;

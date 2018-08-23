@@ -8,12 +8,13 @@ import PropTypes from 'prop-types';
 import config from 'config';
 import { connect } from 'react-redux';
 import { localize } from 'i18n-calypso';
-import { find, get, includes, isEmpty } from 'lodash';
+import { find, get, includes, isEmpty, isEqual } from 'lodash';
 
 /**
  * Internal dependencies
  */
 import ActivityLogBanner from 'my-sites/stats/activity-log-banner';
+import ActivityLogExample from '../activity-log-example';
 import ActivityLogItem from '../activity-log-item';
 import ActivityLogSwitch from '../activity-log-switch';
 import ActivityLogTasklist from '../activity-log-tasklist';
@@ -23,7 +24,6 @@ import EmptyContent from 'components/empty-content';
 import ErrorBanner from '../activity-log-banner/error-banner';
 import UpgradeBanner from '../activity-log-banner/upgrade-banner';
 import { isFreePlan } from 'lib/plans';
-import FoldableCard from 'components/foldable-card';
 import JetpackColophon from 'components/jetpack-colophon';
 import Main from 'components/main';
 import PageViewTracker from 'lib/analytics/page-view-tracker';
@@ -37,7 +37,7 @@ import QueryJetpackPlugins from 'components/data/query-jetpack-plugins/';
 import SidebarNavigation from 'my-sites/sidebar-navigation';
 import StatsNavigation from 'blocks/stats-navigation';
 import SuccessBanner from '../activity-log-banner/success-banner';
-import UnavailabilityNotice from './unavailability-notice';
+import RewindUnavailabilityNotice from './rewind-unavailability-notice';
 import { adjustMoment, getStartMoment } from './utils';
 import { getSelectedSiteId } from 'state/ui/selectors';
 import { getCurrentPlan } from 'state/sites/plans/selectors';
@@ -60,7 +60,10 @@ import getRestoreProgress from 'state/selectors/get-restore-progress';
 import getRewindState from 'state/selectors/get-rewind-state';
 import getSiteGmtOffset from 'state/selectors/get-site-gmt-offset';
 import getSiteTimezoneValue from 'state/selectors/get-site-timezone-value';
+import isVipSite from 'state/selectors/is-vip-site';
 import { requestActivityLogs } from 'state/data-getters';
+import { emptyFilter } from 'state/activity-log/reducer';
+import { isMobile } from 'lib/viewport';
 
 const PAGE_SIZE = 20;
 
@@ -117,7 +120,7 @@ class ActivityLog extends Component {
 	}
 
 	findExistingRewind = ( { siteId, rewindState } ) => {
-		if ( rewindState.rewind ) {
+		if ( rewindState.rewind && rewindState.rewind.restoreId ) {
 			this.props.getRewindRestoreProgress( siteId, rewindState.rewind.restoreId );
 		}
 	};
@@ -302,15 +305,46 @@ class ActivityLog extends Component {
 		);
 	}
 
+	renderNoLogsContent() {
+		const { filter, logLoadingState, siteId, translate, siteIsOnFreePlan } = this.props;
+
+		const isFilterEmpty = isEqual( emptyFilter, filter );
+
+		if ( logLoadingState === 'success' ) {
+			return isFilterEmpty ? (
+				<ActivityLogExample siteId={ siteId } siteIsOnFreePlan={ siteIsOnFreePlan } />
+			) : (
+				<EmptyContent title={ translate( 'No matching events found.' ) } />
+			);
+		}
+
+		// The network request is still ongoing
+		return (
+			<section className="activity-log__wrapper">
+				<div className="activity-log__time-period is-loading">
+					<span />
+				</div>
+				{ [ 1, 2, 3 ].map( i => (
+					<div key={ i } className="activity-log-item is-loading">
+						<div className="activity-log-item__type">
+							<div className="activity-log-item__activity-icon" />
+						</div>
+						<div className="card foldable-card activity-log-item__card" />
+					</div>
+				) ) }
+			</section>
+		);
+	}
+
 	getActivityLog() {
 		const {
 			enableRewind,
 			filter: { page: requestedPage },
 			logs,
-			logLoadingState,
 			moment,
 			rewindState,
 			siteId,
+			siteIsOnFreePlan,
 			slug,
 			translate,
 		} = this.props;
@@ -326,28 +360,6 @@ class ActivityLog extends Component {
 			Math.min( requestedPage, Math.ceil( logs.length / PAGE_SIZE ) )
 		);
 		const theseLogs = logs.slice( ( actualPage - 1 ) * PAGE_SIZE, actualPage * PAGE_SIZE );
-
-		// Content shown when there are no logs.
-		// The network request either finished with no events or is still ongoing.
-		const noLogsContent =
-			logLoadingState === 'success' ? (
-				<EmptyContent title={ translate( 'No matching events found.' ) } />
-			) : (
-				<section className="activity-log__wrapper">
-					{ [ 1, 2, 3 ].map( i => (
-						<FoldableCard
-							key={ i }
-							className="activity-log-day__placeholder"
-							header={
-								<div>
-									<div className="activity-log-day__day" />
-									<div className="activity-log-day__events" />
-								</div>
-							}
-						/>
-					) ) }
-				</section>
-			);
 
 		const timePeriod = ( () => {
 			const today = this.applySiteOffset( moment.utc( Date.now() ) );
@@ -378,24 +390,25 @@ class ActivityLog extends Component {
 				<QuerySiteSettings siteId={ siteId } />
 				<SidebarNavigation />
 				<StatsNavigation selectedItem={ 'activity' } siteId={ siteId } slug={ slug } />
-				{ this.props.siteIsOnFreePlan && <UpgradeBanner siteId={ siteId } /> }
+
 				{ config.isEnabled( 'rewind-alerts' ) && siteId && <RewindAlerts siteId={ siteId } /> }
 				{ siteId &&
-					'unavailable' === rewindState.state && <UnavailabilityNotice siteId={ siteId } /> }
-				{ 'awaitingCredentials' === rewindState.state && (
-					<Banner
-						icon="history"
-						href={
-							rewindState.canAutoconfigure
-								? `/start/rewind-auto-config/?blogid=${ siteId }&siteSlug=${ slug }`
-								: `/start/rewind-setup/?siteId=${ siteId }&siteSlug=${ slug }`
-						}
-						title={ translate( 'Add site credentials' ) }
-						description={ translate(
-							'Backups and security scans require access to your site to work properly.'
-						) }
-					/>
-				) }
+					'unavailable' === rewindState.state && <RewindUnavailabilityNotice siteId={ siteId } /> }
+				{ 'awaitingCredentials' === rewindState.state &&
+					! siteIsOnFreePlan && (
+						<Banner
+							icon="history"
+							href={
+								rewindState.canAutoconfigure
+									? `/start/rewind-auto-config/?blogid=${ siteId }&siteSlug=${ slug }`
+									: `/start/rewind-setup/?siteId=${ siteId }&siteSlug=${ slug }`
+							}
+							title={ translate( 'Add site credentials' ) }
+							description={ translate(
+								'Backups and security scans require access to your site to work properly.'
+							) }
+						/>
+					) }
 				{ 'provisioning' === rewindState.state && (
 					<Banner
 						icon="history"
@@ -411,10 +424,22 @@ class ActivityLog extends Component {
 				{ this.renderErrorMessage() }
 				{ this.renderActionProgress() }
 				{ isEmpty( logs ) ? (
-					noLogsContent
+					this.renderNoLogsContent()
 				) : (
 					<div>
+						<Pagination
+							compact={ isMobile() }
+							className="activity-log__pagination"
+							key="activity-list-pagination-top"
+							nextLabel={ translate( 'Older' ) }
+							page={ actualPage }
+							pageClick={ this.changePage }
+							perPage={ PAGE_SIZE }
+							prevLabel={ translate( 'Newer' ) }
+							total={ logs.length }
+						/>
 						<section className="activity-log__wrapper">
+							{ siteIsOnFreePlan && <div className="activity-log__fader" /> }
 							{ theseLogs.map( log => (
 								<Fragment key={ log.activityId }>
 									{ timePeriod( log ) }
@@ -429,9 +454,11 @@ class ActivityLog extends Component {
 								</Fragment>
 							) ) }
 						</section>
+						{ siteIsOnFreePlan && <UpgradeBanner siteId={ siteId } /> }
 						<Pagination
-							className="activity-log__pagination"
-							key="activity-list-pagination"
+							compact={ isMobile() }
+							className="activity-log__pagination is-bottom-pagination"
+							key="activity-list-pagination-bottom"
 							nextLabel={ translate( 'Older' ) }
 							page={ actualPage }
 							pageClick={ this.changePage }
@@ -495,7 +522,9 @@ export default connect(
 		const restoreStatus = rewindState.rewind && rewindState.rewind.status;
 		const filter = getActivityLogFilter( state, siteId );
 		const logs = siteId && requestActivityLogs( siteId, filter );
-		const siteIsOnFreePlan = isFreePlan( get( getCurrentPlan( state, siteId ), 'productSlug' ) );
+		const siteIsOnFreePlan =
+			isFreePlan( get( getCurrentPlan( state, siteId ), 'productSlug' ) ) &&
+			! isVipSite( state, siteId );
 
 		return {
 			canViewActivityLog: canCurrentUser( state, siteId, 'manage_options' ),

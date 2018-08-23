@@ -16,7 +16,7 @@ import page from 'page';
  */
 import { abtest } from 'lib/abtest';
 import Button from 'components/button';
-import config from 'config';
+import { isEnabled } from 'config';
 import CurrentSite from 'my-sites/current-site';
 import ManageMenu from './manage-menu';
 import Sidebar from 'layout/sidebar';
@@ -47,6 +47,7 @@ import {
 	isJetpackModuleActive,
 	isJetpackSite,
 	isSitePreviewable,
+	canCurrentUserUseAds,
 	canCurrentUserUseStore,
 } from 'state/sites/selectors';
 import { getStatsPathForTab } from 'lib/route';
@@ -54,6 +55,7 @@ import { getAutomatedTransferStatus } from 'state/automated-transfer/selectors';
 import { transferStates } from 'state/automated-transfer/constants';
 import { itemLinkMatches } from './utils';
 import { recordGoogleEvent, recordTracksEvent } from 'state/analytics/actions';
+import { canCurrentUserUpgradeSite } from '../../state/sites/selectors';
 
 /**
  * Module variables
@@ -68,7 +70,7 @@ export class MySitesSidebar extends Component {
 		currentUser: PropTypes.object,
 		isDomainOnly: PropTypes.bool,
 		isJetpack: PropTypes.bool,
-		isSiteAutomatedTransfer: PropTypes.bool,
+		isAtomicSite: PropTypes.bool,
 	};
 
 	componentDidMount() {
@@ -106,6 +108,7 @@ export class MySitesSidebar extends Component {
 			<ManageMenu
 				siteId={ this.props.siteId }
 				path={ this.props.path }
+				isAtomicSite={ this.props.isAtomicSite }
 				onNavigate={ this.onNavigate }
 			/>
 		);
@@ -172,23 +175,49 @@ export class MySitesSidebar extends Component {
 		this.onNavigate();
 	};
 
-	ads() {
-		const { path, site, canUserManageOptions } = this.props;
-		const adsLink = '/ads/earnings' + this.props.siteSuffix;
-		const canManageAds = site && site.options.wordads && canUserManageOptions;
+	trackAdsUpsellClick = () => {
+		this.trackMenuItemClick( 'ads' );
+		this.props.recordTracksEvent( 'calypso_upgrade_nudge_cta_click', {
+			cta_name: 'store_ads',
+		} );
+		this.onNavigate();
+	};
 
-		return (
-			canManageAds && (
+	ads() {
+		const { path, canUserUpgradeSite, canUserUseAds, isJetpack } = this.props;
+
+		if ( canUserUseAds ) {
+			return (
 				<SidebarItem
 					label={ this.props.isJetpack ? 'Ads' : 'WordAds' }
 					selected={ itemLinkMatches( '/ads', path ) }
-					link={ adsLink }
+					link={ '/ads/earnings' + this.props.siteSuffix }
 					onNavigate={ this.trackAdsClick }
 					icon="speaker"
 					tipTarget="wordads"
 				/>
-			)
-		);
+			);
+		}
+
+		if (
+			! isJetpack &&
+			isEnabled( 'upsell/nudge-a-palooza' ) &&
+			canUserUpgradeSite &&
+			abtest( 'nudgeAPalooza' ) === 'sidebarUpsells'
+		) {
+			return (
+				<SidebarItem
+					label={ 'WordAds' }
+					selected={ itemLinkMatches( '/feature/ads', path ) }
+					link={ '/feature/ads' + this.props.siteSuffix }
+					onNavigate={ this.trackAdsUpsellClick }
+					icon="speaker"
+					tipTarget="wordads"
+				/>
+			);
+		}
+
+		return null;
 	}
 
 	trackCustomizeClick = () => {
@@ -198,14 +227,14 @@ export class MySitesSidebar extends Component {
 
 	themes() {
 		const { path, site, translate, canUserEditThemeOptions } = this.props,
-			jetpackEnabled = config.isEnabled( 'manage/themes-jetpack' );
+			jetpackEnabled = isEnabled( 'manage/themes-jetpack' );
 		let themesLink;
 
 		if ( site && ! canUserEditThemeOptions ) {
 			return null;
 		}
 
-		if ( ! config.isEnabled( 'manage/themes' ) ) {
+		if ( ! isEnabled( 'manage/themes' ) ) {
 			return null;
 		}
 
@@ -254,8 +283,9 @@ export class MySitesSidebar extends Component {
 	};
 
 	plugins() {
-		const pluginsLink = '/plugins' + this.props.siteSuffix;
-		const managePluginsLink = '/plugins/manage' + this.props.siteSuffix;
+		if ( isEnabled( 'calypsoify/plugins' ) ) {
+			return null;
+		}
 
 		// checks for manage plugins capability across all sites
 		if ( ! this.props.canManagePlugins ) {
@@ -266,6 +296,9 @@ export class MySitesSidebar extends Component {
 		if ( this.props.siteId && ! this.props.canUserManageOptions ) {
 			return null;
 		}
+
+		const pluginsLink = '/plugins' + this.props.siteSuffix;
+		const managePluginsLink = '/plugins/manage' + this.props.siteSuffix;
 
 		const manageButton =
 			this.props.isJetpack || ( ! this.props.siteId && this.props.hasJetpackSites ) ? (
@@ -310,7 +343,7 @@ export class MySitesSidebar extends Component {
 			return null;
 		}
 
-		if ( this.props.isJetpack && ! this.props.isSiteAutomatedTransfer ) {
+		if ( this.props.isJetpack && ! this.props.isAtomicSite ) {
 			return null;
 		}
 
@@ -392,20 +425,22 @@ export class MySitesSidebar extends Component {
 	};
 
 	store() {
-		const { canUserManageOptions, site, canUserUseStore } = this.props;
+		const { canUserUpgradeSite, site, canUserUseStore, isJetpack } = this.props;
 
-		if ( ! config.isEnabled( 'woocommerce/extension-dashboard' ) || ! site ) {
+		if ( ! isEnabled( 'woocommerce/extension-dashboard' ) || ! site ) {
 			return null;
 		}
 
 		if ( ! canUserUseStore ) {
 			if (
-				config.isEnabled( 'upsell/nudge-a-palooza' ) &&
-				canUserManageOptions &&
+				! isJetpack &&
+				isEnabled( 'upsell/nudge-a-palooza' ) &&
+				canUserUpgradeSite &&
 				abtest( 'nudgeAPalooza' ) === 'sidebarUpsells'
 			) {
 				return this.storeUpsellSidebarItem();
 			}
+
 			return null;
 		}
 
@@ -551,7 +586,11 @@ export class MySitesSidebar extends Component {
 		return (
 			<SidebarItem
 				label={ this.props.translate( 'Settings' ) }
-				selected={ itemLinkMatches( '/settings', path ) }
+				selected={
+					itemLinkMatches( '/settings', path ) &&
+					( ! isEnabled( 'manage/import-in-sidebar' ) ||
+						! itemLinkMatches( '/settings/import', path ) )
+				}
 				link={ siteSettingsLink }
 				onNavigate={ this.trackSettingsClick }
 				icon="cog"
@@ -568,7 +607,7 @@ export class MySitesSidebar extends Component {
 			return null;
 		}
 
-		if ( ! this.useWPAdminFlows() && ! this.props.isSiteAutomatedTransfer ) {
+		if ( ! this.useWPAdminFlows() && ! this.props.isAtomicSite ) {
 			return null;
 		}
 
@@ -661,6 +700,13 @@ export class MySitesSidebar extends Component {
 			);
 		}
 
+		// For the duration of nudgeAPalooza test we need to allocate all users who visit calypso.
+		// Having it here is an easy solution that makes it possible to avoid touching redux store
+		// middleware structure
+		if ( isEnabled( 'upsell/nudge-a-palooza' ) ) {
+			abtest( 'nudgeAPalooza' );
+		}
+
 		const manage = !! this.manage(),
 			configuration =
 				!! this.sharing() ||
@@ -750,6 +796,8 @@ function mapStateToProps( state ) {
 		canUserPublishPosts: canCurrentUser( state, siteId, 'publish_posts' ),
 		canUserViewStats: canCurrentUser( state, siteId, 'view_stats' ),
 		canUserUseStore: canCurrentUserUseStore( state, siteId ),
+		canUserUseAds: canCurrentUserUseAds( state, siteId ),
+		canUserUpgradeSite: canCurrentUserUpgradeSite( state, siteId ),
 		currentUser,
 		customizeUrl: getCustomizerUrl( state, selectedSiteId ),
 		hasJetpackSites: hasJetpackSites( state ),
@@ -757,7 +805,7 @@ function mapStateToProps( state ) {
 		isJetpack,
 		isPreviewable: isSitePreviewable( state, selectedSiteId ),
 		isSharingEnabledOnJetpackSite,
-		isSiteAutomatedTransfer: !! isSiteAutomatedTransfer( state, selectedSiteId ),
+		isAtomicSite: !! isSiteAutomatedTransfer( state, selectedSiteId ),
 		siteId,
 		site,
 		siteSuffix: site ? '/' + site.slug : '',

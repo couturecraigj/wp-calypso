@@ -29,7 +29,7 @@ import {
  */
 import MediaLibrary from 'my-sites/media-library';
 import analytics from 'lib/analytics';
-import { recordEvent, recordStat } from 'lib/posts/stats';
+import { recordEditorEvent, recordEditorStat } from 'state/posts/stats';
 import MediaModalGallery from './gallery';
 import MediaActions from 'lib/media/actions';
 import * as MediaUtils from 'lib/media/utils';
@@ -78,6 +78,7 @@ export class EditorMediaModal extends Component {
 		defaultFilter: PropTypes.string,
 		enabledFilters: PropTypes.arrayOf( PropTypes.string ),
 		view: PropTypes.oneOf( values( ModalViews ) ),
+		galleryViewEnabled: PropTypes.bool,
 		setView: PropTypes.func,
 		resetView: PropTypes.func,
 		postId: PropTypes.number,
@@ -98,6 +99,7 @@ export class EditorMediaModal extends Component {
 		resetView: noop,
 		translate: identity,
 		view: ModalViews.LIST,
+		galleryViewEnabled: true,
 		imageEditorProps: {},
 		deleteMedia: () => {},
 		disableLargeImageSources: false,
@@ -299,8 +301,8 @@ export class EditorMediaModal extends Component {
 	};
 
 	onAddMedia = () => {
-		recordStat( 'media_explorer_upload' );
-		recordEvent( 'Upload Media' );
+		this.props.recordEditorStat( 'media_explorer_upload' );
+		this.props.recordEditorEvent( 'Upload Media' );
 	};
 
 	onAddAndEditImage = () => {
@@ -473,6 +475,7 @@ export class EditorMediaModal extends Component {
 		}
 
 		const selectedItems = this.props.mediaLibrarySelectedItems;
+		const galleryViewEnabled = this.props.galleryViewEnabled;
 		const isDisabled = areMediaActionsDisabled(
 			this.props.view,
 			selectedItems,
@@ -507,6 +510,7 @@ export class EditorMediaModal extends Component {
 		} else if (
 			ModalViews.GALLERY !== this.props.view &&
 			selectedItems.length > 1 &&
+			galleryViewEnabled &&
 			! some( selectedItems, item => MediaUtils.getMimePrefix( item ) !== 'image' )
 		) {
 			buttons.push( {
@@ -665,5 +669,7 @@ export default connect(
 			withAnalytics( recordGoogleEvent( 'Media', 'Clicked Dialog Edit Button' ) ),
 			partial( setEditorMediaModalView, ModalViews.DETAIL )
 		),
+		recordEditorEvent,
+		recordEditorStat,
 	}
 )( localize( EditorMediaModal ) );

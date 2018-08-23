@@ -20,6 +20,7 @@ import {
 	isDiscussionEqual,
 	areAllMetadataEditsApplied,
 	applyPostEdits,
+	mergePostEdits,
 	normalizePostForEditing,
 	normalizePostForDisplay,
 } from './utils';
@@ -27,7 +28,7 @@ import { decodeURIIfValid } from 'lib/url';
 import { getSite } from 'state/sites/selectors';
 import { DEFAULT_POST_QUERY, DEFAULT_NEW_POST_VALUES } from './constants';
 import { addQueryArgs } from 'lib/route';
-import { getFeaturedImageId } from 'lib/posts/utils';
+import { getFeaturedImageId } from 'state/posts/utils';
 
 /**
  * Returns the PostsQueryManager from the state tree for a given site ID (or
@@ -87,18 +88,21 @@ export const getNormalizedPost = createSelector(
  * @param  {Number} siteId Site ID
  * @return {Array}         Site posts
  */
-export const getSitePosts = createSelector( ( state, siteId ) => {
-	if ( ! siteId ) {
-		return null;
-	}
+export const getSitePosts = createSelector(
+	( state, siteId ) => {
+		if ( ! siteId ) {
+			return null;
+		}
 
-	const manager = state.posts.queries[ siteId ];
-	if ( ! manager ) {
-		return [];
-	}
+		const manager = state.posts.queries[ siteId ];
+		if ( ! manager ) {
+			return [];
+		}
 
-	return manager.getItems();
-}, state => state.posts.queries );
+		return manager.getItems();
+	},
+	state => state.posts.queries
+);
 
 /**
  * Returns a post object by site ID, post ID pair.
@@ -108,18 +112,21 @@ export const getSitePosts = createSelector( ( state, siteId ) => {
  * @param  {String}  postId Post ID
  * @return {?Object}        Post object
  */
-export const getSitePost = createSelector( ( state, siteId, postId ) => {
-	if ( ! siteId ) {
-		return null;
-	}
+export const getSitePost = createSelector(
+	( state, siteId, postId ) => {
+		if ( ! siteId ) {
+			return null;
+		}
 
-	const manager = state.posts.queries[ siteId ];
-	if ( ! manager ) {
-		return null;
-	}
+		const manager = state.posts.queries[ siteId ];
+		if ( ! manager ) {
+			return null;
+		}
 
-	return manager.getItem( postId );
-}, state => state.posts.queries );
+		return manager.getItem( postId );
+	},
+	state => state.posts.queries
+);
 
 /**
  * Returns an array of normalized posts for the posts query, or null if no
@@ -318,6 +325,26 @@ export function isRequestingSitePost( state, siteId, postId ) {
 }
 
 /**
+ * Returns an object of edited post attributes for the site ID post ID pairing.
+ *
+ * @param  {Object} state  Global state tree
+ * @param  {Number} siteId Site ID
+ * @param  {Number} postId Post ID
+ * @return {Object}        Post revisions
+ */
+export const getPostEdits = createSelector(
+	( state, siteId, postId ) => {
+		const postEditsLog = get( state.posts.edits, [ siteId, postId || '' ] );
+		if ( ! postEditsLog ) {
+			return null;
+		}
+
+		return normalizePostForEditing( mergePostEdits( ...postEditsLog ) );
+	},
+	state => [ state.posts.edits ]
+);
+
+/**
  * Returns a post object by site ID post ID pairing, with editor revisions.
  *
  * @param  {Object} state  Global state tree
@@ -337,19 +364,6 @@ export const getEditedPost = createSelector(
 	},
 	state => [ state.posts.queries, state.posts.edits ]
 );
-
-/**
- * Returns an object of edited post attributes for the site ID post ID pairing.
- *
- * @param  {Object} state  Global state tree
- * @param  {Number} siteId Site ID
- * @param  {Number} postId Post ID
- * @return {Object}        Post revisions
- */
-export function getPostEdits( state, siteId, postId ) {
-	const { edits } = state.posts;
-	return normalizePostForEditing( get( edits, [ siteId, postId || '' ], null ) );
-}
 
 /**
  * Returns the assigned value for the edited post by field key.
@@ -454,18 +468,21 @@ export const isEditedPostDirty = createSelector(
  * @param  {Number}  postId Post ID
  * @return {Boolean}        Whether post is published
  */
-export const isPostPublished = createSelector( ( state, siteId, postId ) => {
-	const post = getSitePost( state, siteId, postId );
+export const isPostPublished = createSelector(
+	( state, siteId, postId ) => {
+		const post = getSitePost( state, siteId, postId );
 
-	if ( ! post ) {
-		return null;
-	}
+		if ( ! post ) {
+			return null;
+		}
 
-	return (
-		includes( [ 'publish', 'private' ], post.status ) ||
-		( post.status === 'future' && moment( post.date ).isBefore( moment() ) )
-	);
-}, state => state.posts.queries );
+		return (
+			includes( [ 'publish', 'private' ], post.status ) ||
+			( post.status === 'future' && moment( post.date ).isBefore( moment() ) )
+		);
+	},
+	state => state.posts.queries
+);
 
 /**
  * Returns the slug, or suggested_slug, for the edited post

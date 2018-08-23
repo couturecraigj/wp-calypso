@@ -8,6 +8,7 @@ import { connect } from 'react-redux';
 import { translate } from 'i18n-calypso';
 import classNames from 'classnames';
 import { get, startsWith, pickBy } from 'lodash';
+import config from 'config';
 
 /**
  * Internal Dependencies
@@ -56,7 +57,6 @@ import { isFeaturedImageInContent } from 'lib/post-normalizer/utils';
 import ReaderFullPostContentPlaceholder from './placeholders/content';
 import { showSelectedPost } from 'reader/utils';
 import Emojify from 'components/emojify';
-import config from 'config';
 import { COMMENTS_FILTER_ALL } from 'blocks/comments/comments-filters';
 import { READER_FULL_POST } from 'reader/follow-sources';
 import { getPostByKey } from 'state/reader/posts/selectors';
@@ -444,7 +444,7 @@ export class FullPostView extends React.Component {
 							<div className="reader-full-post__comments-wrapper" ref={ this.commentsWrapper }>
 								{ shouldShowComments( post ) && (
 									<Comments
-										showNestingReplyArrow={ config.isEnabled( 'reader/nesting-arrow' ) }
+										showNestingReplyArrow={ true }
 										post={ post }
 										initialSize={ startingCommentId ? commentCount : 10 }
 										pageSize={ 25 }
@@ -454,6 +454,7 @@ export class FullPostView extends React.Component {
 										commentsFilterDisplay={ COMMENTS_FILTER_ALL }
 										showConversationFollowButton={ true }
 										followSource={ READER_FULL_POST }
+										shouldPollForNewComments={ config.isEnabled( 'reader/comment-polling' ) }
 									/>
 								) }
 							</div>
